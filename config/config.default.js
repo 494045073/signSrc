@@ -5,6 +5,23 @@
 /**
  * @param {Egg.EggAppInfo} appInfo app info
  */
+const os = require('os');
+//获取本机ip
+function getIpAddress() {
+  /**os.networkInterfaces() 返回一个对象，该对象包含已分配了网络地址的网络接口 */
+  var interfaces = os.networkInterfaces();
+  for (var devName in interfaces) {
+    var iface = interfaces[devName];
+    for (var i = 0; i < iface.length; i++) {
+      var alias = iface[i];
+      if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
+        return alias.address;
+      }
+    }
+  }
+}
+const myHost = getIpAddress();
+
 module.exports = appInfo => {
   /**
    * built-in config
@@ -14,13 +31,21 @@ module.exports = appInfo => {
 
   // use for cookie sign key, should change to your own and keep security
   config.keys = appInfo.name + '_1665822784033_5418';
-
   // add your middleware config here
   config.middleware = [];
-
+  config.multipart = {
+    mode: 'file',
+    fileExtensions: [ '.pdf', 'doc', 'docx', 'pptx', 'xls', 'xlsx', 'epub','apk' ], // 增加对 apk 扩展名的文件支持
+    fileSize: '500mb',
+  };
   // add your user config here
   const userConfig = {
     // myAppName: 'egg',
+    uploadAvatarDir: 'http://http://103.45.185.51:8888/www/wwwroot/img', // 上传头像路径
+  };
+  //jwt token配置
+  config.jwt = {
+    secret: "123456"//自定义 token 的加密条件字符串
   };
   // 开启 cors跨越
   config.cors = {
@@ -59,7 +84,15 @@ module.exports = appInfo => {
       timestamps: false,
     }
   };
-
+  config.oss = {
+    client: {
+      accessKeyId: 'LTAI5tM9EkEws5kzWDJumMP7', // 阿里云账号
+      accessKeySecret: 'mOOQ2XJEcGDb7EukbyTA2jRY4UAvVG',
+      bucket: 'ktimgbk',
+      endpoint: 'oss-cn-beijing.aliyuncs.com',
+      timeout: '80s',
+    },
+  };
   // 配置socket
   config.io = {
     init: {}, // passed to engine.io
@@ -81,6 +114,13 @@ module.exports = appInfo => {
       password: '',
       db: 0,
     },
+  };
+  // 配置端口信息
+  config.cluster = {
+    listen:{
+      port:7001,
+      hostname:myHost
+    }
   };
   return {
     ...config,

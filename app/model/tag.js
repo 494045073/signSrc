@@ -7,7 +7,8 @@ module.exports = app => {
     tid: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      primaryKey: true
+      primaryKey: true,
+      autoIncrement: true
     },
     tagName: {
       type: DataTypes.STRING(50),

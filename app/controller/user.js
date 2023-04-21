@@ -38,50 +38,117 @@ class UserController extends Controller {
       }
     }
   }
+  //微信登录
   async loginByWechat() {
     const {
-      ctx,
+      ctx,app
     } = this;
     const {
       encryptedData,
+      identity,
+      studentId,
       code,
       pid,
       iv,
     } = ctx.request.body;
+    const idt = identity==='student'?0:1
     // todo 1.还需要填入appid和secret；2.请求、校验失败的处理
     const appid = 'wx0fca0a82d8931fed';
     const secret = '776a0e066e1aa20aa38f8b24ab8c4bf7';
     let url=`https://api.weixin.qq.com/sns/jscode2session?appid=${appid}&secret=${secret}&js_code=${code}&grant_type=authorization_code`
-    const {data}=await ctx.curl(url,{
-      method: 'GET',
-      rejectUnauthorized: false,
-      dataType: 'json',
-    })
-    const pc = new WXBizDataCrypt(appid, data.session_key)
-    const datas = pc.decryptData(encryptedData , iv)
-    const findUser=await ctx.model.User.findOne({
-      where:{
-        openID:datas.nickName
+    try {
+      const {data}=await ctx.curl(url,{
+        method: 'GET',
+        rejectUnauthorized: false,
+        dataType: 'json',
+      })
+      const pc = new WXBizDataCrypt(appid, data.session_key)
+      const datas = pc.decryptData(encryptedData , iv)
+      const findUser=await ctx.model.User.findOne({
+        where:{
+          openID:data.openid
+        }
+      })
+      const newUserInfo={
+        phone:'',
+        username: datas.nickName,
+        avatar: datas.avatarUrl,
+        sex:datas.gender,
+        openID:data.openid,
+        session_key: data.session_key,
+        identity: idt,
+        studentID: studentId,
+        realName:'',
+        school: '',
+        department: '',
+        class: '',
+        createTime: new Date().getTime()
       }
-    })
-    const newUserInfo={
-      phone:'',
-      username: datas.nickName,
-      avatar: datas.avatarUrl
-    }
-    if (findUser==null){
-      const newUser=await ctx.model.User.create(newUserInfo)
-      return ctx.body = {
+      const token = app.jwt.sign({
+        username: datas.nickName, //需要存储的 token 数据
+      }, app.config.jwt.secret);
+      if (findUser===null){
+        console.log(studentId,identity)
+        if (!studentId || !identity){
+          return ctx.body = {
+            success:false,
+            info:'您还未注册,请先绑定学工号',
+            code:10000
+          }
+        }
+        const newUser=await ctx.model.User.create(newUserInfo)
+        return ctx.body = {
+          success: true,
+          info: '登录成功',
+          token: token,
+          data:{
+            uid:newUser.uid,
+            username:newUser.username,
+            avatar: newUser.avatar,
+            studentId:newUser.studentID,
+            identity: newUser.identity,
+            realName:newUser.realName,
+            phone: newUser.phone,
+            sex: newUser.sex,
+            school: newUser.school,
+            department: newUser.department,
+            class:  newUser.class,
+          }
+        };
+      }
+      if (idt!=findUser.identity){
+        return ctx.body={
+          success:false,
+          info:'您已绑定身份，请从对应入口登录！',
+          code:1000
+        }
+      }
+      ctx.body = {
         success: true,
-        info: '登入成功',
-        data: data
+        info: '登录成功',
+        token: token,
+        data:{
+          uid:findUser.uid,
+          username:findUser.username,
+          avatar: findUser.avatar,
+          studentId:findUser.studentID,
+          identity: findUser.identity,
+          realName:findUser.realName,
+          phone: findUser.phone,
+          sex: findUser.sex,
+          school: findUser.school,
+          department: findUser.department,
+          class:  findUser.class,
+        }
       };
+    }catch (err) {
+      console.log(err)
+      return ctx.body = {
+        success:false,
+        info: '登录失败，请重试',
+        data: err,
+      }
     }
-    ctx.body = {
-      success: true,
-      info: '登入成功',
-      data: data
-    };
     // let res = await got(url);
     // console.log(res.access_token)
     // let resObj = JSON.parse(res);
@@ -176,6 +243,67 @@ class UserController extends Controller {
       return ctx.body={
         success:false,
         info:'网络错误'
+      }
+    }
+  }
+  async userInfoUpDate(){
+    const {
+      ctx,
+    } = this;
+    const {
+        department,
+        identity,
+        phone,
+        realName,
+        school,
+        sex,
+        studentId,
+        uid,
+        username,
+        avatar,
+        uClass,
+    } = ctx.request.body;
+    console.log(uid)
+    try {
+      const data={
+        phone:phone,
+        department:department,
+        realName:realName,
+        school:school,
+        sex:sex,
+        class:uClass,
+      }
+      await ctx.model.User.update(data,{
+        where:{
+          uid
+        }
+      })
+      const userInfo = await ctx.model.User.findOne({where:{uid}})
+      return ctx.body={
+        success:true,
+        info:'修改成功',
+        code:200,
+        data:{
+          uid:userInfo.uid,
+          username:userInfo.username,
+          avatar: userInfo.avatar,
+          studentId:userInfo.studentID,
+          identity: userInfo.identity,
+          realName:userInfo.realName,
+          phone: userInfo.phone,
+          sex: userInfo.sex,
+          school: userInfo.school,
+          department: userInfo.department,
+          class:  userInfo.class,
+        }
+      }
+      // console.log(userInfo)
+    }catch (e) {
+      console.log(e)
+      ctx.body={
+        success:false,
+        info:'网络故障，请重试',
+        code:1000
       }
     }
   }

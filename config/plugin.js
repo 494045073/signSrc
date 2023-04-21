@@ -6,6 +6,11 @@ module.exports = {
   // static: {
   //   enable: true,
   // }
+    //启用jwt
+    jwt: {
+        enable: true,
+        package: "egg-jwt"
+    },
     // 解决跨域的方法 新增 start
     cors: {
         enable: true,
@@ -28,5 +33,9 @@ module.exports = {
     redis: {
         enable: true,
         package: 'egg-redis',
+    },
+    oss: {
+        enable: true,
+        package: 'egg-oss',
     },
 };
